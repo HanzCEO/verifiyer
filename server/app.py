@@ -76,7 +76,10 @@ def is_solved(address):
 	contract = w3.eth.contract(address=setup_contract, abi=SETUP_ABI)
 	return contract.functions.isSolved().call()
 
-def giveStartingEth(account):
+def get_account_balance(account):
+	return w3.eth.get_balance(account.address)
+
+def give_starting_eth(account):
 	host_account = w3.eth.account.from_key(PRIVATE_KEY)
 	creation_tx = make_contract_tx(account)
 	tx = host_account.sign_transaction({
@@ -107,7 +110,6 @@ def make_contract_tx(account):
 	return tx
 
 def create_setup_contract(account):
-	giveStartingEth(account)
 	tx = make_contract_tx(account)
 	signed_tx = w3.eth.account.sign_transaction(tx, private_key=account.key)
 	tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
@@ -137,8 +139,14 @@ def main():
 		print("PoW is valid.")
 		
 		account = generate_eth_account_from(pow)
-		if check_contract_exists(account.address):
-			if is_solved(account.address):
+		if check_contract_exists(account.address) or get_account_balance(account) > 0:
+			if not check_contract_exists(account.address):
+				# This if block is when someone have connection issue but already have starting ETH
+				# TODO: DRY
+				print("Creating setup contract...")
+				setup_address = create_setup_contract(account)
+				challenge_address = get_challenge_address(setup_address)
+			elif is_solved(account.address):
 				print("Challenge solved!")
 				print(FLAG)
 			else:
@@ -148,6 +156,7 @@ def main():
 				challenge_address = get_challenge_address(setup_address)
 		else:
 			print("Creating setup contract...")
+			give_starting_eth(account)
 			setup_address = create_setup_contract(account)
 			challenge_address = get_challenge_address(setup_address)
 		print(f"Setup       : {setup_address}")
