@@ -8,8 +8,11 @@ RPC = os.getenv('RPC', 'https://rpc.bordel.wtf/test')
 def main():
 	print("verifiyer 0.1.0")
 	print(f"Using {RPC}")
+	print()
 	print("Enter your address: ", end='')
 	address = input()
+	if not Web3.is_checksum_address(address):
+		address = Web3.to_checksum_address(address)
 
 	w3 = Web3(Web3.HTTPProvider(RPC))
 
@@ -25,10 +28,11 @@ def main():
 		}])
 		return contract.functions.isSolved(address).call()
 
-	if is_solved(address):
+	try:
+		is_solved(address)
 		print("Challenge solved!")
 		print(FLAG)
-	else:
+	except:
 		print("Challenge not solved.")
 
 main()
