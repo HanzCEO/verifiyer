@@ -7,10 +7,11 @@ FLAG = os.getenv('FLAG', 'flag{fake_flag}')
 SETUP_BYTECODE = os.getenv('SETUP_BYTECODE', None)
 SETUP_GAS = int(os.getenv('SETUP_GAS', 400000))
 SETUP_GAS_PRICE = int(os.getenv('SETUP_GAS_PRICE', 5))
+ETH_BASE_GAS = int(os.getenv('ETH_BASE_GAS', 21000))
 CONSTRUCTOR_VALUE = int(os.getenv('CONSTRUCTOR_VALUE', 1))
 PRIVATE_KEY = os.getenv('PRIVATE_KEY', None)
 DIFFICULTY = int(os.getenv('DIFFICULTY', 6))
-CHAIN_ID = int(os.getenv('CHAIN_ID', 39438141))
+CHAIN_ID = int(os.getenv('CHAIN_ID', -1))
 RPC = os.getenv('RPC', 'https://rpc.bordel.wtf/test')
 
 SETUP_ABI = [{
@@ -43,6 +44,11 @@ assert SETUP_BYTECODE is not None
 assert PRIVATE_KEY is not None
 
 w3 = Web3(Web3.HTTPProvider(RPC))
+
+def get_chain_id():
+	if CHAIN_ID == -1:
+		return w3.eth.chain_id
+	return CHAIN_ID
 
 def verifyPoW(pow):
 	if pow.isdigit():
@@ -86,9 +92,9 @@ def give_starting_eth(account):
 		'to': account.address,
 		'value': w3.to_wei(CONSTRUCTOR_VALUE + calculate_tx_fee(creation_tx), 'ether'),
 		'nonce': w3.eth.get_transaction_count(host_account.address),
-		'gas': 21000,
+		'gas': ETH_BASE_GAS,
 		'gasPrice': w3.to_wei(SETUP_GAS_PRICE, 'gwei'),
-		"chainId": CHAIN_ID
+		"chainId": get_chain_id()
 	})
 	tx_hash = w3.eth.send_raw_transaction(tx.raw_transaction)
 	w3.eth.wait_for_transaction_receipt(tx_hash)
@@ -103,9 +109,9 @@ def make_contract_tx(account):
 		'from': account.address,
 		'value': w3.to_wei(CONSTRUCTOR_VALUE, 'ether'),
 		'nonce': 0,
-		'gas': SETUP_GAS,
+		'gas': ETH_BASE_GAS + SETUP_GAS,
 		'gasPrice': w3.to_wei(SETUP_GAS_PRICE, 'gwei'),
-		"chainId": CHAIN_ID
+		"chainId": get_chain_id()
 	})
 	return tx
 
@@ -134,10 +140,10 @@ def main():
 	print()
 	print("Enter your PoW: ", end='')
 	pow = input()
-	
+
 	if verifyPoW(pow):
 		print("PoW is valid.")
-		
+
 		account = generate_eth_account_from(pow)
 		if check_contract_exists(account.address) or get_account_balance(account) > 0:
 			if not check_contract_exists(account.address):
@@ -149,6 +155,7 @@ def main():
 			elif is_solved(account.address):
 				print("Challenge solved!")
 				print(FLAG)
+				exit(0)
 			else:
 				print("Instance exists.")
 				print("Challenge remains unsolved.")
