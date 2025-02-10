@@ -9,6 +9,7 @@ interface IChallenge {
 contract Setup {
 	address public player;
 	address public challenge;
+	bool public destroyed;
 
 	constructor(address _player) payable {
 		player = _player;
@@ -19,7 +20,13 @@ contract Setup {
 		challenge = address(new Challenge());
 	}
 
+	function destroy() external {
+		require(msg.sender == player && tx.origin == player, "Player-only function");
+		destroyed = true;
+	}
+
 	function isSolved() external view returns (bool) {
+		require(!destroyed, "Destroyed");
 		return IChallenge(challenge).owner() == player;
 	}
 }
